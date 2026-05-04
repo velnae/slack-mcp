@@ -1,0 +1,21 @@
+{
+  "plugins": [
+    "/absolute/path/to/puyu-slack-mcp/.opencode/plugins/prompt-image-bridge.js"
+  ],
+  "mcpServers": {
+    "puyu-slack": {
+      "command": "npm",
+      "args": ["start"],
+      "cwd": "/absolute/path/to/puyu-slack-mcp",
+      "env": {
+        "SLACK_TOKEN": "xoxb-or-xoxp-token",
+        "SLACK_ALIAS_PATH": "~/.config/opencode/slack/aliases.json",
+        "SLACK_DRY_RUN": "true",
+        "SLACK_ALLOWED_CONVERSATIONS": "D083VAXM56W,C03JJ1NLS1J",
+        "SLACK_DUPLICATE_WINDOW_MS": "300000",
+        "SLACK_MAX_UPLOAD_BYTES": "20971520",
+        "OPENCODE_IMAGE_MANIFEST_PATH": "/tmp/puyu-slack-mcp/opencode-attachments/latest.json"
+      }
+    }
+  }
+}

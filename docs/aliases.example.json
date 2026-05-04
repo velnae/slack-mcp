@@ -1,0 +1,17 @@
+{
+  "users": {
+    "silvia": {
+      "user_id": "U083SFK8TJR",
+      "dm_channel_id": "D083VAXM56W",
+      "real_name": "Silvia",
+      "email": "silvia@example.com"
+    }
+  },
+  "channels": {
+    "ventas": {
+      "channel_id": "C03JJ1NLS1J",
+      "name": "ventas"
+    },
+    "ti": "C09ABCDEF12"
+  }
+}
