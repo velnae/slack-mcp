@@ -8,12 +8,12 @@ import { createErrorResult, createSuccessResult } from './common.js';
 import type { ToolDefinition, ToolDependencies } from './common.js';
 
 const inputSchema = z.object({
-  alias: z.string().trim().min(1).optional(),
-  channel_id: z.string().trim().min(1).optional(),
-  dm_channel_id: z.string().trim().min(1).optional(),
-  user_id: z.string().trim().min(1).optional(),
+  alias: z.string().trim().optional(),
+  channel_id: z.string().trim().optional(),
+  dm_channel_id: z.string().trim().optional(),
+  user_id: z.string().trim().optional(),
   text: z.string().trim().min(1),
-  thread_ts: z.string().trim().min(1).optional(),
+  thread_ts: z.string().trim().optional(),
 });
 
 export function createSlackSendMessageTool(deps: ToolDependencies): ToolDefinition<z.infer<typeof inputSchema>> {
@@ -25,6 +25,7 @@ export function createSlackSendMessageTool(deps: ToolDependencies): ToolDefiniti
       let dedupeKey: string | undefined;
       let destinationId: string | undefined;
       try {
+        const threadTs = input.thread_ts || undefined;
         const { destination } = await resolveDestination(deps.registry, {
           alias: input.alias,
           channelId: input.channel_id,
@@ -35,15 +36,15 @@ export function createSlackSendMessageTool(deps: ToolDependencies): ToolDefiniti
         enforceAllowlist(destination, deps.config.allowedConversations);
 
         destinationId = destinationConversationId(destination);
-        dedupeKey = `send:${destinationId}:${input.thread_ts ?? 'root'}:${input.text}`;
+        dedupeKey = `send:${destinationId}:${threadTs ?? 'root'}:${input.text}`;
         deps.duplicateGuard.assertNotDuplicate(dedupeKey);
 
         if (deps.config.dryRun) {
-          return createSuccessResult('Dry-run: Slack message not sent.', createDryRunData('send_message', destination, { text: input.text, thread_ts: input.thread_ts }).data);
+          return createSuccessResult('Dry-run: Slack message not sent.', createDryRunData('send_message', destination, { text: input.text, thread_ts: threadTs }).data);
         }
 
         const channelId = destination.kind === 'user' ? destination.dmChannelId : destination.channelId;
-        const result = await deps.adapter.sendMessage({ channelId, text: input.text, threadTs: input.thread_ts });
+        const result = await deps.adapter.sendMessage({ channelId, text: input.text, threadTs });
         deps.duplicateGuard.clear(dedupeKey);
         return createSuccessResult(`Sent Slack message to ${channelId}.`, { destination, ...result });
       } catch (error) {

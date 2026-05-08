@@ -12,13 +12,13 @@ import { createErrorResult, createSuccessResult } from './common.js';
 import type { ToolDefinition, ToolDependencies } from './common.js';
 
 export const slackUploadFileInputSchema = z.object({
-  alias: z.string().trim().min(1).optional(),
-  channel_id: z.string().trim().min(1).optional(),
-  dm_channel_id: z.string().trim().min(1).optional(),
-  user_id: z.string().trim().min(1).optional(),
+  alias: z.string().trim().optional(),
+  channel_id: z.string().trim().optional(),
+  dm_channel_id: z.string().trim().optional(),
+  user_id: z.string().trim().optional(),
   file_path: z.string().trim().min(1),
-  initial_comment: z.string().trim().min(1).optional(),
-  thread_ts: z.string().trim().min(1).optional(),
+  initial_comment: z.string().trim().optional(),
+  thread_ts: z.string().trim().optional(),
 });
 
 export type SlackUploadFileInput = z.infer<typeof slackUploadFileInputSchema>;
@@ -27,6 +27,8 @@ export async function executeSlackUploadFile(deps: ToolDependencies, input: Slac
   let dedupeKey: string | undefined;
   let destinationId: string | undefined;
   try {
+    const initialComment = input.initial_comment || undefined;
+    const threadTs = input.thread_ts || undefined;
     const stats = await fs.stat(input.file_path).catch(() => null);
     if (!stats || !stats.isFile()) {
       throw new SlackMcpError('FILE_ERROR', 'Local file does not exist.', {
@@ -50,7 +52,7 @@ export async function executeSlackUploadFile(deps: ToolDependencies, input: Slac
 
     enforceAllowlist(destination, deps.config.allowedConversations);
     destinationId = destinationConversationId(destination);
-    dedupeKey = `upload:${destinationId}:${input.thread_ts ?? 'root'}:${input.file_path}:${input.initial_comment ?? ''}`;
+    dedupeKey = `upload:${destinationId}:${threadTs ?? 'root'}:${input.file_path}:${initialComment ?? ''}`;
     deps.duplicateGuard.assertNotDuplicate(dedupeKey);
 
     if (deps.config.dryRun) {
@@ -58,8 +60,8 @@ export async function executeSlackUploadFile(deps: ToolDependencies, input: Slac
         'Dry-run: Slack file upload not sent.',
         createDryRunData('upload_file', destination, {
           file_path: input.file_path,
-          initial_comment: input.initial_comment,
-          thread_ts: input.thread_ts,
+          initial_comment: initialComment,
+          thread_ts: threadTs,
         }).data,
       );
     }
@@ -69,8 +71,8 @@ export async function executeSlackUploadFile(deps: ToolDependencies, input: Slac
       channelId,
       filePath: input.file_path,
       filename: path.basename(input.file_path),
-      initialComment: input.initial_comment,
-      threadTs: input.thread_ts,
+      initialComment,
+      threadTs,
     });
     deps.duplicateGuard.clear(dedupeKey);
     return createSuccessResult(`Uploaded file to ${channelId}.`, { destination, ...result });

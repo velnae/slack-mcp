@@ -11,17 +11,94 @@ const IMAGE_EXTENSION_BY_MEDIA_TYPE = {
   'image/png': 'png',
   'image/svg+xml': 'svg',
   'image/webp': 'webp',
-};
+} as const;
 
-function isRecord(value) {
+interface DataUrlPayload {
+  bytes: Buffer;
+  mediaType?: string;
+  sourceField: 'data-url';
+}
+
+interface CandidateCollection {
+  value: unknown;
+  path: string;
+}
+
+interface PromptImagePartRecord {
+  type?: unknown;
+  mediaType?: unknown;
+  mimeType?: unknown;
+  mime?: unknown;
+  contentType?: unknown;
+  data?: unknown;
+  base64?: unknown;
+  content?: unknown;
+  source?: unknown;
+  url?: unknown;
+  path?: unknown;
+  filePath?: unknown;
+  bytes?: unknown;
+}
+
+interface PromptImageSourceRecord {
+  mediaType?: unknown;
+  mimeType?: unknown;
+  mime?: unknown;
+  data?: unknown;
+  base64?: unknown;
+  content?: unknown;
+  url?: unknown;
+  path?: unknown;
+  filePath?: unknown;
+}
+
+export interface ExtractedPromptImagePart {
+  bytes?: Buffer;
+  sourcePath?: string;
+  mediaType: string;
+  partType: string;
+  eventName: string;
+  eventPath: string;
+  sessionId: string;
+  messageId: string;
+  sourceField: string;
+}
+
+export interface PersistedPromptImageCapture {
+  version: number;
+  filePath: string;
+  mediaType: string;
+  sessionId: string;
+  messageId: string;
+  createdAt: string;
+  source: {
+    eventName: string;
+    eventPath: string;
+    partType: string;
+    sourceField: string;
+    sourcePath?: string;
+  };
+}
+
+export interface PersistPromptImageCaptureOptions {
+  captureRoot?: string;
+  manifestPath?: string;
+}
+
+export interface PromptImageCaptureResult {
+  saved: PersistedPromptImageCapture[];
+  diagnostics: Record<string, unknown> | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isImageMediaType(value) {
+function isImageMediaType(value: string | undefined): boolean {
   return typeof value === 'string' && value.toLowerCase().startsWith('image/');
 }
 
-function normalizeMediaType(...values) {
+function normalizeMediaType(...values: unknown[]): string | undefined {
   for (const value of values) {
     if (typeof value === 'string' && value.trim().length > 0) {
       return value.trim().toLowerCase();
@@ -30,7 +107,7 @@ function normalizeMediaType(...values) {
   return undefined;
 }
 
-function normalizeId(value, fallback) {
+function normalizeId(value: unknown, fallback: string | undefined): string | undefined {
   if (typeof value === 'string' && value.trim().length > 0) {
     return value.trim();
   }
@@ -40,7 +117,7 @@ function normalizeId(value, fallback) {
   return fallback;
 }
 
-function base64ToBuffer(value) {
+function base64ToBuffer(value: unknown): Buffer | undefined {
   if (typeof value !== 'string') {
     return undefined;
   }
@@ -57,16 +134,13 @@ function base64ToBuffer(value) {
 
   try {
     const buffer = Buffer.from(normalized, 'base64');
-    if (buffer.length === 0) {
-      return undefined;
-    }
-    return buffer;
+    return buffer.length > 0 ? buffer : undefined;
   } catch {
     return undefined;
   }
 }
 
-function extractFromDataUrl(value) {
+function extractFromDataUrl(value: unknown): DataUrlPayload | undefined {
   if (typeof value !== 'string') {
     return undefined;
   }
@@ -93,7 +167,7 @@ function extractFromDataUrl(value) {
   };
 }
 
-function extractBinaryValue(value) {
+function extractBinaryValue(value: unknown): Buffer | undefined {
   if (Buffer.isBuffer(value)) {
     return Buffer.from(value);
   }
@@ -106,7 +180,7 @@ function extractBinaryValue(value) {
   return undefined;
 }
 
-function extractPathReference(value) {
+function extractPathReference(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined;
   }
@@ -120,19 +194,15 @@ function extractPathReference(value) {
     return decodeURIComponent(new URL(trimmed).pathname);
   }
 
-  if (path.isAbsolute(trimmed)) {
-    return trimmed;
-  }
-
-  return undefined;
+  return path.isAbsolute(trimmed) ? trimmed : undefined;
 }
 
-function guessExtension(mediaType) {
-  return IMAGE_EXTENSION_BY_MEDIA_TYPE[mediaType ?? ''] ?? 'bin';
+function guessExtension(mediaType: string): string {
+  return IMAGE_EXTENSION_BY_MEDIA_TYPE[mediaType as keyof typeof IMAGE_EXTENSION_BY_MEDIA_TYPE] ?? 'bin';
 }
 
-function getNestedValue(value, pathSegments) {
-  let current = value;
+function getNestedValue(value: unknown, pathSegments: readonly string[]): unknown {
+  let current: unknown = value;
   for (const segment of pathSegments) {
     if (!isRecord(current) || !(segment in current)) {
       return undefined;
@@ -142,62 +212,77 @@ function getNestedValue(value, pathSegments) {
   return current;
 }
 
-export function extractPromptImageParts(eventPayload) {
-  const payload = isRecord(eventPayload?.properties) ? eventPayload.properties : eventPayload;
-  const eventName = normalizeId(eventPayload?.eventName ?? eventPayload?.name, 'unknown');
+function getRecord(value: unknown): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+export function extractPromptImageParts(eventPayload: unknown): ExtractedPromptImagePart[] {
+  const eventRecord = getRecord(eventPayload);
+  const payload = getRecord(eventRecord?.properties) ?? eventRecord ?? {};
+  const eventName = normalizeId(eventRecord?.eventName ?? eventRecord?.name, 'unknown') ?? 'unknown';
   const sessionId =
-    normalizeId(payload?.sessionID, undefined) ??
-    normalizeId(payload?.sessionId, undefined) ??
-    normalizeId(payload?.session?.id, undefined) ??
-    normalizeId(payload?.message?.sessionID, undefined) ??
-    normalizeId(payload?.message?.sessionId, undefined) ??
+    normalizeId(payload.sessionID, undefined) ??
+    normalizeId(payload.sessionId, undefined) ??
+    normalizeId(getNestedValue(payload, ['session', 'id']), undefined) ??
+    normalizeId(getNestedValue(payload, ['message', 'sessionID']), undefined) ??
+    normalizeId(getNestedValue(payload, ['message', 'sessionId']), undefined) ??
     'unknown';
   const messageId =
-    normalizeId(payload?.messageID, undefined) ??
-    normalizeId(payload?.messageId, undefined) ??
-    normalizeId(payload?.message?.id, undefined) ??
-    normalizeId(payload?.part?.messageID, undefined) ??
-    normalizeId(payload?.part?.messageId, undefined) ??
-    normalizeId(payload?.id, undefined) ??
+    normalizeId(payload.messageID, undefined) ??
+    normalizeId(payload.messageId, undefined) ??
+    normalizeId(getNestedValue(payload, ['message', 'id']), undefined) ??
+    normalizeId(getNestedValue(payload, ['part', 'messageID']), undefined) ??
+    normalizeId(getNestedValue(payload, ['part', 'messageId']), undefined) ??
+    normalizeId(payload.id, undefined) ??
     String(Date.now());
 
-  const candidateCollections = [
+  const candidateCollections: CandidateCollection[] = [
     { value: getNestedValue(payload, ['message', 'parts']), path: 'properties.message.parts' },
     { value: getNestedValue(payload, ['parts']), path: 'properties.parts' },
     { value: getNestedValue(payload, ['part']), path: 'properties.part' },
     { value: getNestedValue(payload, ['message']), path: 'properties.message' },
   ];
 
-  const parts = [];
+  const parts: ExtractedPromptImagePart[] = [];
 
   for (const collection of candidateCollections) {
     const items = Array.isArray(collection.value) ? collection.value : [collection.value];
-    for (const [index, part] of items.entries()) {
-      if (!isRecord(part)) {
+    for (const [index, rawPart] of items.entries()) {
+      if (!isRecord(rawPart)) {
         continue;
       }
 
-      const mediaType = normalizeMediaType(part.mediaType, part.mimeType, part.mime, part.contentType, part.source?.mediaType, part.source?.mimeType, part.source?.mime);
-      const partType = normalizeId(part.type, 'unknown');
+      const part = rawPart as PromptImagePartRecord;
+      const source = getRecord(part.source) as PromptImageSourceRecord | undefined;
+      const mediaType = normalizeMediaType(
+        part.mediaType,
+        part.mimeType,
+        part.mime,
+        part.contentType,
+        source?.mediaType,
+        source?.mimeType,
+        source?.mime,
+      );
+      const partType = normalizeId(part.type, 'unknown') ?? 'unknown';
       const looksLikeImagePart = partType === 'file' || partType === 'image' || isImageMediaType(mediaType);
       if (!looksLikeImagePart) {
         continue;
       }
 
-      const fieldsToInspect = [
+      const fieldsToInspect: Array<[string, unknown]> = [
         ['data', part.data],
         ['base64', part.base64],
         ['content', part.content],
         ['source', part.source],
-        ['source.data', part.source?.data],
-        ['source.base64', part.source?.base64],
-        ['source.content', part.source?.content],
+        ['source.data', source?.data],
+        ['source.base64', source?.base64],
+        ['source.content', source?.content],
         ['url', part.url],
         ['path', part.path],
         ['filePath', part.filePath],
-        ['source.url', part.source?.url],
-        ['source.path', part.source?.path],
-        ['source.filePath', part.source?.filePath],
+        ['source.url', source?.url],
+        ['source.path', source?.path],
+        ['source.filePath', source?.filePath],
         ['bytes', part.bytes],
       ];
 
@@ -206,7 +291,7 @@ export function extractPromptImageParts(eventPayload) {
         if (dataUrlPayload && isImageMediaType(dataUrlPayload.mediaType ?? mediaType)) {
           parts.push({
             bytes: dataUrlPayload.bytes,
-            mediaType: dataUrlPayload.mediaType ?? mediaType,
+            mediaType: dataUrlPayload.mediaType ?? mediaType ?? 'image/unknown',
             partType,
             eventName,
             eventPath: `${collection.path}[${index}]`,
@@ -221,7 +306,7 @@ export function extractPromptImageParts(eventPayload) {
         if (binaryValue && isImageMediaType(mediaType)) {
           parts.push({
             bytes: binaryValue,
-            mediaType,
+            mediaType: mediaType ?? 'image/unknown',
             partType,
             eventName,
             eventPath: `${collection.path}[${index}]`,
@@ -236,7 +321,7 @@ export function extractPromptImageParts(eventPayload) {
         if (nestedBase64 && isImageMediaType(mediaType)) {
           parts.push({
             bytes: nestedBase64,
-            mediaType,
+            mediaType: mediaType ?? 'image/unknown',
             partType,
             eventName,
             eventPath: `${collection.path}[${index}]`,
@@ -251,7 +336,7 @@ export function extractPromptImageParts(eventPayload) {
         if (sourcePath && isImageMediaType(mediaType)) {
           parts.push({
             sourcePath,
-            mediaType,
+            mediaType: mediaType ?? 'image/unknown',
             partType,
             eventName,
             eventPath: `${collection.path}[${index}]`,
@@ -268,8 +353,8 @@ export function extractPromptImageParts(eventPayload) {
   return parts;
 }
 
-export function sanitizeEventDiagnostics(eventPayload) {
-  const diagnostics = {};
+export function sanitizeEventDiagnostics(eventPayload: unknown): Record<string, unknown> {
+  const diagnostics: Record<string, unknown> = {};
   if (!isRecord(eventPayload)) {
     return { rootType: typeof eventPayload };
   }
@@ -291,10 +376,11 @@ export function sanitizeEventDiagnostics(eventPayload) {
     diagnostics[key] = typeof value;
   }
 
-  if (isRecord(eventPayload.properties)) {
-    diagnostics.propertiesKeys = Object.keys(eventPayload.properties).slice(0, 24);
-    for (const key of Object.keys(eventPayload.properties).slice(0, 12)) {
-      const value = eventPayload.properties[key];
+  const properties = getRecord(eventPayload.properties);
+  if (properties) {
+    diagnostics.propertiesKeys = Object.keys(properties).slice(0, 24);
+    for (const key of Object.keys(properties).slice(0, 12)) {
+      const value = properties[key];
       diagnostics[`properties.${key}`] = Array.isArray(value)
         ? `array(${value.length})`
         : isRecord(value)
@@ -311,15 +397,19 @@ export function sanitizeEventDiagnostics(eventPayload) {
         diagnostics['properties.partKeys'] = Object.keys(value).slice(0, 24);
         diagnostics['properties.part.type'] = typeof value.type === 'string' ? value.type : typeof value.type;
         diagnostics['properties.part.mime'] = typeof value.mime === 'string' ? value.mime : typeof value.mime;
-        diagnostics['properties.part.filename'] = typeof value.filename === 'string' ? `string(${value.filename.length})` : typeof value.filename;
-        diagnostics['properties.part.url'] = typeof value.url === 'string'
-          ? value.url.startsWith('data:')
-            ? 'string(data-url)'
-            : value.url.startsWith('file:')
-              ? 'string(file-url)'
-              : `string(${value.url.length})`
-          : typeof value.url;
-        diagnostics['properties.part.source'] = isRecord(value.source) ? `object(${Object.keys(value.source).slice(0, 12).join(',')})` : typeof value.source;
+        diagnostics['properties.part.filename'] =
+          typeof value.filename === 'string' ? `string(${value.filename.length})` : typeof value.filename;
+        diagnostics['properties.part.url'] =
+          typeof value.url === 'string'
+            ? value.url.startsWith('data:')
+              ? 'string(data-url)'
+              : value.url.startsWith('file:')
+                ? 'string(file-url)'
+                : `string(${value.url.length})`
+            : typeof value.url;
+        diagnostics['properties.part.source'] = isRecord(value.source)
+          ? `object(${Object.keys(value.source).slice(0, 12).join(',')})`
+          : typeof value.source;
       }
     }
   }
@@ -327,15 +417,18 @@ export function sanitizeEventDiagnostics(eventPayload) {
   return diagnostics;
 }
 
-export async function persistPromptImageCapture(extractedParts, options = {}) {
+export async function persistPromptImageCapture(
+  extractedParts: readonly ExtractedPromptImagePart[],
+  options: PersistPromptImageCaptureOptions = {},
+): Promise<PersistedPromptImageCapture[]> {
   const captureRoot = options.captureRoot ?? DEFAULT_CAPTURE_ROOT;
   const manifestPath = options.manifestPath ?? DEFAULT_MANIFEST_PATH;
   const createdAt = new Date().toISOString();
-  const saved = [];
+  const saved: PersistedPromptImageCapture[] = [];
 
   for (const [index, part] of extractedParts.entries()) {
-    const sessionId = part.sessionId ?? 'unknown';
-    const messageId = part.messageId ?? String(Date.now());
+    const sessionId = part.sessionId || 'unknown';
+    const messageId = part.messageId || String(Date.now());
     const targetDir = path.join(captureRoot, sessionId, messageId);
     const targetPath = path.join(targetDir, `image-${index + 1}.${guessExtension(part.mediaType)}`);
     const bytes = part.bytes ?? (part.sourcePath ? await fs.readFile(part.sourcePath) : undefined);
@@ -370,7 +463,10 @@ export async function persistPromptImageCapture(extractedParts, options = {}) {
   return saved;
 }
 
-export async function capturePromptImagesFromEvent(eventPayload, options = {}) {
+export async function capturePromptImagesFromEvent(
+  eventPayload: unknown,
+  options: PersistPromptImageCaptureOptions = {},
+): Promise<PromptImageCaptureResult> {
   const extractedParts = extractPromptImageParts(eventPayload);
   if (extractedParts.length === 0) {
     return { saved: [], diagnostics: sanitizeEventDiagnostics(eventPayload) };

@@ -97,6 +97,18 @@ describe('tool handlers', () => {
     expect(result.structuredContent).toMatchObject({ ok: true, data: { channelId: 'D1', ts: '123.456' } });
   });
 
+  it('ignores empty optional destination fields when sending by alias', async () => {
+    const config = createConfig();
+    const registry = new AliasRegistry(config.aliasPath);
+    await registry.upsertUser('silvia', { user_id: 'U1', dm_channel_id: 'D1' });
+    const adapter = { sendMessage: vi.fn().mockResolvedValue({ channelId: 'D1', ts: '123.456' }) };
+    const tool = createSlackSendMessageTool(createDeps({ config, registry, adapter: adapter as never }));
+
+    const result = await tool.handler({ alias: 'silvia', channel_id: '', dm_channel_id: '', user_id: '', text: 'hola', thread_ts: '' });
+    expect(adapter.sendMessage).toHaveBeenCalledWith({ channelId: 'D1', text: 'hola', threadTs: undefined });
+    expect(result.structuredContent).toMatchObject({ ok: true, data: { channelId: 'D1', ts: '123.456' } });
+  });
+
   it('preserves thread_ts when sending a thread reply', async () => {
     const adapter = { sendMessage: vi.fn().mockResolvedValue({ channelId: 'C1', ts: '123.457', threadTs: '123.000' }) };
     const tool = createSlackSendMessageTool(createDeps({ adapter: adapter as never }));

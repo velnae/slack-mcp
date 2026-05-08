@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { capturePromptImagesFromEvent, extractPromptImageParts } from '../.opencode/plugins/lib/prompt-image-capture.js';
+import { capturePromptImagesFromEvent, extractPromptImageParts } from '../src/opencode/promptImageCapture.ts';
 
 async function createTempDir() {
   return fs.mkdtemp(path.join(os.tmpdir(), 'puyu-slack-mcp-plugin-'));

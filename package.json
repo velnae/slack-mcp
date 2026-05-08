@@ -1,10 +1,63 @@
 {
-  "name": "puyu-slack-mcp",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@velnae/slack-mcp",
+  "version": "0.1.4",
   "type": "module",
-  "description": "Local Slack MCP server for PUYU workflows.",
+  "description": "OpenCode plugin and local MCP server for Slack messaging, uploads, and prompt-image capture.",
+  "license": "MIT",
+  "homepage": "https://github.com/velnae/slack-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/velnae/slack-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/velnae/slack-mcp/issues"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "mcp",
+    "slack"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/opencode/plugin.js",
+  "types": "./dist/opencode/plugin.d.ts",
+  "bin": {
+    "slack-mcp": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/opencode/plugin.d.ts",
+      "import": "./dist/opencode/plugin.js",
+      "default": "./dist/opencode/plugin.js"
+    },
+    "./server": {
+      "types": "./dist/opencode/plugin.d.ts",
+      "import": "./dist/opencode/plugin.js",
+      "default": "./dist/opencode/plugin.js"
+    },
+    "./mcp-server": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./manifest": {
+      "types": "./dist/opencode/promptImageManifest.d.ts",
+      "import": "./dist/opencode/promptImageManifest.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs/opencode.example.json",
+    "docs/prompt-image-upload.md",
+    "docs/aliases.example.json"
+  ],
   "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && chmod +x dist/index.js",
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",

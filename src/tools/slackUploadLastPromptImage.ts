@@ -6,13 +6,13 @@ import type { ToolDefinition, ToolDependencies } from './common.js';
 import { executeSlackUploadFile } from './slackUploadFile.js';
 
 export const slackUploadLastPromptImageInputSchema = z.object({
-  alias: z.string().trim().min(1).optional(),
-  channel_id: z.string().trim().min(1).optional(),
-  dm_channel_id: z.string().trim().min(1).optional(),
-  user_id: z.string().trim().min(1).optional(),
-  initial_comment: z.string().trim().min(1).optional(),
-  thread_ts: z.string().trim().min(1).optional(),
-  manifest_path: z.string().trim().min(1).optional(),
+  alias: z.string().trim().optional(),
+  channel_id: z.string().trim().optional(),
+  dm_channel_id: z.string().trim().optional(),
+  user_id: z.string().trim().optional(),
+  initial_comment: z.string().trim().optional(),
+  thread_ts: z.string().trim().optional(),
+  manifest_path: z.string().trim().optional(),
 });
 
 type SlackUploadLastPromptImageInput = z.infer<typeof slackUploadLastPromptImageInputSchema>;
@@ -24,15 +24,15 @@ export function createSlackUploadLastPromptImageTool(deps: ToolDependencies): To
     inputSchema: slackUploadLastPromptImageInputSchema,
     handler: async (input) => {
       try {
-        const manifest = await readPromptImageManifest(input.manifest_path ?? deps.config.opencodeImageManifestPath);
+        const manifest = await readPromptImageManifest(input.manifest_path || deps.config.opencodeImageManifestPath);
         const uploadResult = await executeSlackUploadFile(deps, {
           alias: input.alias,
           channel_id: input.channel_id,
           dm_channel_id: input.dm_channel_id,
           user_id: input.user_id,
           file_path: manifest.filePath,
-          initial_comment: input.initial_comment,
-          thread_ts: input.thread_ts,
+          initial_comment: input.initial_comment || undefined,
+          thread_ts: input.thread_ts || undefined,
         });
 
         if (uploadResult.isError) {

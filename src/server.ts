@@ -4,6 +4,7 @@ import { AliasRegistry } from './aliases/AliasRegistry.js';
 import type { AppConfig } from './config.js';
 import { DuplicateGuard } from './safety/duplicateGuard.js';
 import { SlackAdapter } from './slack/SlackAdapter.js';
+import { MCP_SERVER_NAME, PACKAGE_VERSION } from './packageMeta.js';
 import { createSlackAliasUpsertTool } from './tools/slackAliasUpsert.js';
 import { createSlackHistoryTool } from './tools/slackHistory.js';
 import { createSlackListChannelsTool } from './tools/slackListChannels.js';
@@ -57,8 +58,8 @@ export function registerTools(registrar: ToolRegistrar, deps: ToolDependencies):
 
 export function createSlackMcpServer(deps: ToolDependencies): McpServer {
   const server = new McpServer({
-    name: 'puyu-slack-mcp',
-    version: '0.1.0',
+    name: MCP_SERVER_NAME,
+    version: PACKAGE_VERSION,
   });
   registerTools(server as unknown as ToolRegistrar, deps);
   return server;

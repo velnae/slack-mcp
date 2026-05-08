@@ -6,7 +6,7 @@ import type { ToolDefinition, ToolDependencies } from './common.js';
 const inputSchema = z.object({
   types: z.array(z.enum(['public_channel', 'private_channel', 'mpim', 'im'])).default(['public_channel', 'private_channel', 'im', 'mpim']),
   limit: z.number().int().min(1).max(200).default(100),
-  cursor: z.string().trim().min(1).optional(),
+  cursor: z.string().trim().optional(),
 });
 
 export function createSlackListChannelsTool(deps: ToolDependencies): ToolDefinition<z.infer<typeof inputSchema>> {

@@ -5,6 +5,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { getToolDefinitions, registerTools } from '../src/server.js';
 import { createDeps } from './helpers.js';
 
+interface ToolPropertySchema {
+  minLength?: number;
+}
+
+interface ToolJsonSchema {
+  required?: string[];
+  properties?: Record<string, ToolPropertySchema>;
+}
+
+interface ToolStandardSchema {
+  '~standard': {
+    jsonSchema: {
+      input: (options: { target: string }) => ToolJsonSchema;
+    };
+  };
+}
+
 describe('server registration', () => {
   it('exposes the required tools', () => {
     const defs = getToolDefinitions(createDeps());
@@ -46,5 +63,19 @@ describe('server registration', () => {
     const schema = sendTool?.inputSchema as z.ZodType;
     expect(() => schema.parse({ alias: 'silvia' })).toThrow();
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('keeps send destination fields optional and empty-string tolerant for OpenCode adapters', () => {
+    const defs = getToolDefinitions(createDeps());
+    const sendTool = defs.find((tool) => tool.name === 'slack_send_message');
+    const schema = sendTool?.inputSchema as ToolStandardSchema;
+
+    const jsonSchema = schema['~standard'].jsonSchema.input({ target: 'draft-2020-12' });
+    expect(jsonSchema.required).toEqual(['text']);
+    expect(jsonSchema.properties?.alias?.minLength).toBeUndefined();
+    expect(jsonSchema.properties?.channel_id?.minLength).toBeUndefined();
+    expect(jsonSchema.properties?.dm_channel_id?.minLength).toBeUndefined();
+    expect(jsonSchema.properties?.user_id?.minLength).toBeUndefined();
+    expect(jsonSchema.properties?.thread_ts?.minLength).toBeUndefined();
   });
 });

@@ -8,12 +8,12 @@ const inputSchema = z
     alias: z.string().trim().min(1),
     kind: z.enum(['user', 'channel']),
     overwrite: z.boolean().default(false),
-    user_id: z.string().trim().min(1).optional(),
-    dm_channel_id: z.string().trim().min(1).optional(),
-    real_name: z.string().trim().min(1).optional(),
-    email: z.string().trim().email().optional(),
-    channel_id: z.string().trim().min(1).optional(),
-    name: z.string().trim().min(1).optional(),
+    user_id: z.string().trim().optional(),
+    dm_channel_id: z.string().trim().optional(),
+    real_name: z.string().trim().optional(),
+    email: z.string().trim().optional(),
+    channel_id: z.string().trim().optional(),
+    name: z.string().trim().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.kind === 'user' && (!value.user_id || !value.dm_channel_id)) {
